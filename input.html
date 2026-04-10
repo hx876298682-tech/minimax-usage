@@ -1,0 +1,132 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>MiniMax API Key</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; user-select: none; -webkit-user-select: none; }
+
+    body {
+      font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+      background: rgba(26, 26, 31, 0.95);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      height: 100vh;
+      padding: 12px;
+      overflow: hidden;
+      border-radius: 12px;
+      border: 1px solid rgba(255,255,255,0.1);
+    }
+
+    .container {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      width: 100%;
+    }
+
+    input {
+      flex: 1;
+      background: rgba(34, 34, 40, 0.9);
+      border: 1px solid rgba(255,255,255,0.1);
+      border-radius: 8px;
+      padding: 10px 14px;
+      color: #f0f0f5;
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 13px;
+      outline: none;
+    }
+
+    input:focus {
+      border-color: #e56b6f;
+      box-shadow: 0 0 0 3px rgba(229,107,111,0.2);
+    }
+
+    input::placeholder {
+      color: #aaaaaa;
+    }
+
+    button {
+      background: linear-gradient(135deg, #e56b6f, #c44549);
+      color: #fff;
+      border: none;
+      border-radius: 8px;
+      padding: 10px 16px;
+      font-size: 13px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: transform 0.1s;
+    }
+
+    button:hover { transform: translateY(-1px); }
+    button:active { transform: translateY(0); }
+  </style>
+</head>
+<body>
+  <div class="container" id="dragArea">
+    <input type="password" id="apiKeyInput" placeholder="输入 MiniMax API Key，回车保存…" autocomplete="off" spellcheck="false" />
+    <button id="saveBtn">保存</button>
+  </div>
+
+  <script>
+    const STORAGE_KEY = 'minimax_api_key';
+
+    let isDragging = false;
+    let dragStartX = 0;
+    let dragStartY = 0;
+    const DRAG_THRESHOLD = 3;
+
+    document.addEventListener('DOMContentLoaded', () => {
+      document.getElementById('apiKeyInput').focus();
+      initDrag();
+    });
+
+    function initDrag() {
+      const dragArea = document.getElementById('dragArea');
+
+      dragArea.addEventListener('mousedown', (e) => {
+        isDragging = false;
+        dragStartX = e.screenX;
+        dragStartY = e.screenY;
+      });
+
+      dragArea.addEventListener('mousemove', (e) => {
+        if (e.buttons !== 1) return;
+
+        const deltaX = e.screenX - dragStartX;
+        const deltaY = e.screenY - dragStartY;
+        const distance = Math.sqrt(deltaX * deltaX + deltaY * deltaY);
+
+        if (distance > DRAG_THRESHOLD) {
+          isDragging = true;
+          if (window.electronAPI) {
+            window.electronAPI.moveWindow(deltaX, deltaY);
+          }
+          dragStartX = e.screenX;
+          dragStartY = e.screenY;
+        }
+      });
+
+      dragArea.addEventListener('mouseup', () => {
+        isDragging = false;
+      });
+    }
+
+    function saveApiKey() {
+      const key = document.getElementById('apiKeyInput').value.trim();
+      if (!key) return;
+      localStorage.setItem(STORAGE_KEY, key);
+      if (window.electronAPI) {
+        window.electronAPI.apiKeySaved();
+      }
+    }
+
+    document.getElementById('saveBtn').addEventListener('click', saveApiKey);
+    document.getElementById('apiKeyInput').addEventListener('keydown', e => {
+      if (e.key === 'Enter') saveApiKey();
+    });
+  </script>
+</body>
+</html>
