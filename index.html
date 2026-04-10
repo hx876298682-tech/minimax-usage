@@ -1,0 +1,839 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>MiniMax 用量监控</title>
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap');
+
+    :root {
+      --bg-primary: #0d0d0f;
+      --bg-secondary: #131316;
+      --bg-card: #1a1a1f;
+      --bg-card-hover: #1f1f25;
+      --bg-input: #222228;
+      --border: rgba(255,255,255,0.07);
+      --border-accent: rgba(229,107,111,0.3);
+      --accent: #e56b6f;
+      --accent-light: #f09090;
+      --accent-glow: rgba(229,107,111,0.15);
+      --accent-glow-strong: rgba(229,107,111,0.3);
+      --text-primary: #f0f0f5;
+      --text-secondary: #8a8a9a;
+      --text-muted: #55556a;
+      --success: #4ade80;
+      --warning: #fbbf24;
+      --danger: #f87171;
+      --info: #a0c4ff;
+      --radius: 16px;
+      --radius-sm: 10px;
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+      background: var(--bg-primary);
+      color: var(--text-primary);
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      padding: 40px 20px 80px;
+      background-image:
+        radial-gradient(ellipse 80% 50% at 50% -20%, rgba(229,107,111,0.08) 0%, transparent 70%),
+        radial-gradient(ellipse 60% 40% at 80% 100%, rgba(229,107,111,0.04) 0%, transparent 60%);
+    }
+
+    /* ── Header ── */
+    .header { text-align: center; margin-bottom: 40px; }
+
+    .logo-row {
+      display: flex; align-items: center; justify-content: center; gap: 12px;
+      margin-bottom: 12px;
+    }
+
+    .logo-icon {
+      width: 48px; height: 48px;
+      background: linear-gradient(135deg, var(--accent), #c44549);
+      border-radius: 14px;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 22px;
+      box-shadow: 0 4px 24px var(--accent-glow-strong);
+    }
+
+    .title {
+      font-size: 28px; font-weight: 800; letter-spacing: -0.5px;
+      background: linear-gradient(135deg, var(--text-primary) 40%, var(--accent-light));
+      -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text;
+    }
+
+    .subtitle {
+      color: var(--text-secondary); font-size: 14px;
+      margin-top: 6px;
+    }
+
+    /* ── Card ── */
+    .main-card {
+      background: var(--bg-card); border: 1px solid var(--border);
+      border-radius: var(--radius); padding: 36px; width: 100%; max-width: 600px;
+      position: relative; overflow: hidden;
+      box-shadow: 0 20px 60px rgba(0,0,0,0.4);
+    }
+
+    .main-card::before {
+      content: ''; position: absolute; top: 0; left: 0; right: 0; height: 1px;
+      background: linear-gradient(90deg, transparent, var(--accent), transparent);
+      opacity: 0.5;
+    }
+
+    /* ── Error Banner ── */
+    .error-banner {
+      background: rgba(248,113,113,0.08); border: 1px solid rgba(248,113,113,0.25);
+      border-radius: var(--radius-sm); padding: 14px 16px; margin-bottom: 24px;
+      font-size: 13px; color: var(--danger); display: none;
+      align-items: flex-start; gap: 10px; line-height: 1.5;
+    }
+    .error-banner.show { display: flex; }
+
+    /* ── API Key ── */
+    .api-key-label {
+      font-size: 11px; font-weight: 600; letter-spacing: 1.5px;
+      text-transform: uppercase; color: var(--text-muted); margin-bottom: 10px;
+    }
+    .api-key-row { display: flex; gap: 10px; }
+    .api-key-input {
+      flex: 1; background: var(--bg-input); border: 1px solid var(--border);
+      border-radius: var(--radius-sm); padding: 12px 16px;
+      color: var(--text-primary); font-family: 'JetBrains Mono', monospace;
+      font-size: 13px; outline: none;
+      transition: border-color 0.2s, box-shadow 0.2s;
+    }
+    .api-key-input:focus {
+      border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-glow);
+    }
+    .api-key-input::placeholder { color: var(--text-muted); font-family: 'JetBrains Mono', monospace; }
+
+    /* ── Buttons ── */
+    .btn {
+      display: inline-flex; align-items: center; justify-content: center; gap: 7px;
+      padding: 12px 20px; border-radius: var(--radius-sm);
+      font-family: 'Inter', sans-serif; font-size: 13px; font-weight: 600;
+      cursor: pointer; border: none; transition: all 0.2s; white-space: nowrap;
+    }
+    .btn-primary {
+      background: linear-gradient(135deg, var(--accent), #c44549); color: #fff;
+      box-shadow: 0 4px 16px var(--accent-glow-strong);
+    }
+    .btn-primary:hover { transform: translateY(-1px); box-shadow: 0 6px 24px var(--accent-glow-strong); }
+    .btn-primary:active { transform: translateY(0); }
+    .btn-ghost {
+      background: var(--bg-input); color: var(--text-secondary);
+      border: 1px solid var(--border);
+    }
+    .btn-ghost:hover { color: var(--text-primary); border-color: rgba(255,255,255,0.15); }
+    .btn:disabled { opacity: 0.5; cursor: not-allowed; transform: none !important; }
+
+    /* ── Model Selector ── */
+    .model-select-label {
+      font-size: 11px; font-weight: 600; letter-spacing: 1.5px;
+      text-transform: uppercase; color: var(--text-muted); margin: 20px 0 8px;
+    }
+    .model-select {
+      width: 100%; background: var(--bg-input); border: 1px solid var(--border);
+      border-radius: var(--radius-sm); padding: 12px 16px;
+      color: var(--text-primary); font-family: 'JetBrains Mono', monospace;
+      font-size: 13px; outline: none; cursor: pointer;
+      appearance: none; background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%238a8a9a' stroke-width='2'%3E%3Cpolyline points='6 9 12 15 18 9'%3E%3C/polyline%3E%3C/svg%3E");
+      background-repeat: no-repeat; background-position: right 14px center;
+    }
+    .model-select:focus { border-color: var(--accent); }
+
+    /* ── Gauge ── */
+    .gauge-section {
+      display: flex; flex-direction: column; align-items: center;
+      margin: 32px 0 28px; position: relative;
+    }
+    .gauge-wrap { position: relative; width: 200px; height: 200px; }
+    .gauge-svg { width: 100%; height: 100%; transform: rotate(-90deg); }
+    .gauge-bg { fill: none; stroke: rgba(255,255,255,0.05); stroke-width: 12; }
+    .gauge-fill {
+      fill: none; stroke: url(#gaugeGradient); stroke-width: 12;
+      stroke-linecap: round; stroke-dasharray: 565.48; stroke-dashoffset: 565.48;
+      transition: stroke-dashoffset 1.2s cubic-bezier(0.4, 0, 0.2, 1);
+    }
+    .gauge-center {
+      position: absolute; top: 50%; left: 50%;
+      transform: translate(-50%, -50%); text-align: center;
+    }
+    .gauge-pct { font-size: 38px; font-weight: 800; letter-spacing: -1px; line-height: 1; }
+    .gauge-pct-label { font-size: 12px; color: var(--text-muted); font-weight: 500; margin-top: 4px; }
+    .gauge-remain { font-size: 11px; color: var(--text-muted); font-weight: 400; margin-top: 2px; }
+
+    /* ── Stats Grid ── */
+    .stats-grid {
+      display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; margin-bottom: 28px;
+    }
+    .stat-card {
+      background: var(--bg-secondary); border: 1px solid var(--border);
+      border-radius: var(--radius-sm); padding: 18px 14px; text-align: center;
+      transition: border-color 0.2s;
+    }
+    .stat-card:hover { border-color: var(--border-accent); }
+    .stat-value {
+      font-family: 'JetBrains Mono', monospace; font-size: 18px;
+      font-weight: 600; line-height: 1; margin-bottom: 6px;
+    }
+    .stat-label {
+      font-size: 10px; font-weight: 600; letter-spacing: 1px;
+      text-transform: uppercase; color: var(--text-muted);
+    }
+    .stat-card.total  .stat-value { color: var(--accent-light); }
+    .stat-card.used   .stat-value { color: var(--info); }
+    .stat-card.remain .stat-value { color: var(--success); }
+
+    /* ── Cycle Info ── */
+    .cycle-cards {
+      display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 28px;
+    }
+    .cycle-card {
+      background: var(--bg-secondary); border: 1px solid var(--border);
+      border-radius: var(--radius-sm); padding: 16px 14px;
+    }
+    .cycle-card-title {
+      font-size: 10px; font-weight: 600; letter-spacing: 1px;
+      text-transform: uppercase; color: var(--text-muted); margin-bottom: 10px;
+    }
+    .cycle-bar-bg {
+      height: 6px; background: rgba(255,255,255,0.06); border-radius: 3px;
+      overflow: hidden; margin-bottom: 8px;
+    }
+    .cycle-bar-fill {
+      height: 100%; border-radius: 3px;
+      transition: width 1s cubic-bezier(0.4, 0, 0.2, 1);
+    }
+    .cycle-bar-fill.daily  { background: linear-gradient(90deg, var(--accent), var(--accent-light)); }
+    .cycle-bar-fill.weekly { background: linear-gradient(90deg, #7c83fd, #a0c4ff); }
+    .cycle-nums {
+      display: flex; justify-content: space-between;
+      font-family: 'JetBrains Mono', monospace; font-size: 12px; font-weight: 500;
+    }
+    .cycle-nums .used { color: var(--text-secondary); }
+    .cycle-nums .total { color: var(--text-muted); }
+    .cycle-time {
+      font-size: 11px; color: var(--text-muted); margin-top: 6px;
+      display: flex; align-items: center; gap: 5px;
+    }
+    .cycle-time svg { flex-shrink: 0; }
+
+    /* ── Meta ── */
+    .meta-row {
+      display: flex; align-items: center; justify-content: space-between;
+      flex-wrap: wrap; gap: 8px; padding-top: 20px;
+      border-top: 1px solid var(--border); margin-bottom: 24px;
+    }
+    .reset-info, .last-updated {
+      font-size: 12px; color: var(--text-secondary);
+      display: flex; align-items: center; gap: 6px;
+    }
+
+    /* ── Actions ── */
+    .action-row { display: flex; gap: 10px; }
+    .action-row .btn { flex: 1; }
+
+    /* ── Welcome ── */
+    .welcome-state { text-align: center; padding: 20px 0; }
+    .welcome-icon { font-size: 48px; margin-bottom: 16px; opacity: 0.8; }
+    .welcome-title { font-size: 18px; font-weight: 700; margin-bottom: 8px; }
+    .welcome-desc { font-size: 13px; color: var(--text-secondary); line-height: 1.6; }
+
+    /* ── Status Bar ── */
+    .status-bar {
+      position: fixed; bottom: 0; left: 0; right: 0; padding: 10px 20px;
+      background: rgba(13,13,15,0.9); backdrop-filter: blur(12px);
+      border-top: 1px solid var(--border);
+      display: flex; align-items: center; justify-content: center; gap: 16px;
+      font-size: 12px; color: var(--text-muted); z-index: 100;
+    }
+    .status-dot { width: 6px; height: 6px; border-radius: 50%; flex-shrink: 0; }
+    .status-dot.live { background: var(--success); box-shadow: 0 0 6px var(--success); animation: pulse 2s infinite; }
+    .status-dot.error { background: var(--danger); }
+    @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.4; } }
+
+    /* ── Spinner ── */
+    .spinner {
+      width: 14px; height: 14px;
+      border: 2px solid rgba(255,255,255,0.3); border-top-color: #fff;
+      border-radius: 50%; animation: spin 0.7s linear infinite; display: inline-block;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    /* ── Responsive ── */
+    /* ── Error Banner ── */
+    .error-banner {
+      background: rgba(248,113,113,0.08); border: 1px solid rgba(248,113,113,0.25);
+      border-radius: var(--radius-sm); padding: 14px 16px; margin-bottom: 24px;
+      font-size: 13px; color: var(--danger); display: none;
+      align-items: flex-start; gap: 10px; line-height: 1.5;
+    }
+    .error-banner.show { display: flex; }
+
+    /* ── Responsive ── */
+    @media (max-width: 480px) {
+      body { padding: 24px 16px 80px; }
+      .main-card { padding: 24px 16px; }
+      .title { font-size: 22px; }
+      .cycle-cards { grid-template-columns: 1fr; }
+      .stats-grid { gap: 8px; }
+      .stat-value { font-size: 15px; }
+      .action-row { flex-direction: column; }
+    }
+
+    /* ── Float Mode (Widget) ── */
+    .float-mode .header,
+    .float-mode .model-select-label,
+    .float-mode .model-select,
+    .float-mode .stats-grid,
+    .float-mode .cycle-cards,
+    .float-mode .meta-row,
+    .float-mode .action-row,
+    .float-mode .status-bar,
+    .float-mode .error-banner,
+    .float-mode #welcomeState,
+    .float-mode #webApiKeyArea { display: none !important; }
+
+    /* API Key area - only shown when no key saved */
+    .float-mode #floatApiKeyArea { display: block; }
+    .float-mode #floatApiKeyArea.hidden { display: none !important; }
+    .float-mode .api-key-label { display: block; font-size: 10px; margin-bottom: 6px; }
+    .float-mode .api-key-row { display: flex !important; gap: 6px; }
+    .float-mode .api-key-input { font-size: 11px; padding: 8px 10px; }
+    .float-mode #saveBtn { padding: 8px 12px; font-size: 11px; }
+
+    /* Gauge area - only shown after key saved */
+    .float-mode #dataArea { display: none; }
+    .float-mode #dataArea.visible { display: block !important; }
+    .float-mode #dataArea .model-select-label,
+    .float-mode #dataArea .model-select { display: none !important; }
+
+    .float-mode body, .float-mode html {
+      padding: 0;
+      margin: 0;
+      background: transparent;
+      background-image: none;
+      overflow: hidden !important;
+      height: 100%;
+    }
+
+    .float-mode .main-card {
+      background: rgba(26, 26, 31, 0.9);
+      border: 1px solid rgba(255,255,255,0.12);
+      box-shadow: 0 8px 32px rgba(0,0,0,0.5);
+      padding: 16px;
+      border-radius: 16px;
+      backdrop-filter: blur(16px);
+      -webkit-app-region: drag;
+    }
+
+    .float-mode .main-card::before { display: none; }
+
+    .float-mode .gauge-section { margin: 0; }
+
+    .float-mode .gauge-wrap {
+      width: 100%;
+      aspect-ratio: 1;
+      max-width: 180px;
+      margin: 0 auto;
+    }
+  </style>
+</head>
+<body>
+
+  <svg width="0" height="0" style="position:absolute">
+    <defs>
+      <linearGradient id="gaugeGradient" x1="0%" y1="0%" x2="100%" y2="0%">
+        <stop offset="0%"   stop-color="#e56b6f" />
+        <stop offset="100%" stop-color="#f09090" />
+      </linearGradient>
+    </defs>
+  </svg>
+
+  <div class="header">
+    <div class="logo-row">
+      <div class="logo-icon">⚡</div>
+      <div class="title">MiniMax 用量监控</div>
+    </div>
+    <div class="subtitle">实时追踪 Coding Plan 配额使用情况</div>
+  </div>
+
+  <div class="main-card">
+    <div class="error-banner" id="errorBanner">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="flex-shrink:0;margin-top:1px">
+        <circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/>
+      </svg>
+      <span id="errorText"></span>
+    </div>
+
+    <!-- Float mode API Key input -->
+    <div id="floatApiKeyArea" style="display:none">
+      <div class="api-key-label">API Key</div>
+      <div class="api-key-row">
+        <input class="api-key-input" type="password" id="apiKeyInput"
+          placeholder="输入 API Key，回车保存…" autocomplete="off" spellcheck="false" />
+        <button class="btn btn-primary" id="saveBtn">保存</button>
+      </div>
+    </div>
+
+    <!-- Welcome state (web mode) -->
+    <div id="welcomeState" class="welcome-state">
+      <div class="welcome-icon">🔑</div>
+      <div class="welcome-title">输入 API Key 即可开始</div>
+      <div class="welcome-desc">Key 仅保存在本机浏览器<br>仅用于请求 MiniMax 服务器</div>
+    </div>
+
+    <!-- Web mode API Key input -->
+    <div id="webApiKeyArea" style="display:none">
+      <div class="api-key-label">API Key</div>
+      <div class="api-key-row">
+        <input class="api-key-input" type="password" id="apiKeyInputWeb"
+          placeholder="输入 API Key，回车保存…" autocomplete="off" spellcheck="false" />
+        <button class="btn btn-primary" id="saveBtnWeb">保存</button>
+      </div>
+    </div>
+
+    <div id="dataArea" style="display:none">
+      <div class="model-select-label">选择模型</div>
+      <select class="model-select" id="modelSelect" onchange="selectModel(this.value)"></select>
+
+      <div class="gauge-section">
+        <div class="gauge-wrap" id="gaugeWrap" style="cursor:pointer" onclick="toggleGaugeView()">
+          <svg class="gauge-svg" viewBox="0 0 200 200">
+            <circle class="gauge-bg" cx="100" cy="100" r="90"/>
+            <circle class="gauge-fill" id="gaugeFill" cx="100" cy="100" r="90"/>
+          </svg>
+          <div class="gauge-center">
+            <div class="gauge-pct" id="gaugePct">—</div>
+            <div class="gauge-pct-label" id="gaugeLabel">已用</div>
+            <div class="gauge-remain" id="gaugeRemain">剩余 —</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="stats-grid">
+        <div class="stat-card total">
+          <div class="stat-value" id="statTotal">—</div>
+          <div class="stat-label">总额度</div>
+        </div>
+        <div class="stat-card used">
+          <div class="stat-value" id="statUsed">—</div>
+          <div class="stat-label">已使用</div>
+        </div>
+        <div class="stat-card remain">
+          <div class="stat-value" id="statRemain">—</div>
+          <div class="stat-label">剩余</div>
+        </div>
+      </div>
+
+      <div class="cycle-cards">
+        <div class="cycle-card">
+          <div class="cycle-card-title">📅 当日配额</div>
+          <div class="cycle-bar-bg">
+            <div class="cycle-bar-fill daily" id="dailyBar" style="width:0%"></div>
+          </div>
+          <div class="cycle-nums">
+            <span class="used" id="dailyUsed">—</span>
+            <span class="total" id="dailyTotal">—</span>
+          </div>
+          <div class="cycle-time" id="dailyTime">
+            <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/>
+            </svg>
+            <span>剩余 —</span>
+          </div>
+        </div>
+        <div class="cycle-card">
+          <div class="cycle-card-title">🗓️ 本周配额</div>
+          <div class="cycle-bar-bg">
+            <div class="cycle-bar-fill weekly" id="weeklyBar" style="width:0%"></div>
+          </div>
+          <div class="cycle-nums">
+            <span class="used" id="weeklyUsed">—</span>
+            <span class="total" id="weeklyTotal">—</span>
+          </div>
+          <div class="cycle-time" id="weeklyTime">
+            <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/>
+            </svg>
+            <span>剩余 —</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="meta-row">
+        <div class="reset-info" id="intervalInfo">—</div>
+        <div class="last-updated">更新于 <span id="lastUpdated">—</span></div>
+      </div>
+
+      <div class="action-row">
+        <button class="btn btn-ghost" id="refreshBtn" onclick="fetchData()">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+            <polyline points="23 4 23 10 17 10"/><polyline points="1 20 1 14 7 14"/>
+            <path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/>
+          </svg>
+          刷新
+        </button>
+        <button class="btn btn-primary" id="autoRefreshBtn" onclick="toggleAutoRefresh()">
+          <span id="autoRefreshLabel">⟳ 自动刷新: 开</span>
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <div class="status-bar">
+    <div class="status-dot" id="statusDot"></div>
+    <span id="statusText">等待输入 API Key…</span>
+    <span id="countdownText" style="margin-left:auto"></span>
+  </div>
+
+<script>
+  const API_URL = 'https://www.minimaxi.com/v1/api/openplatform/coding_plan/remains';
+  const CIRCUMFERENCE = 2 * Math.PI * 90;
+  const STORAGE_KEY = 'minimax_api_key';
+  const REFRESH_INTERVAL = 1;
+
+  let allModels = [];
+  let selectedModelIndex = 0;
+  let gaugeView = 'daily'; // 'daily' or 'weekly'
+  let autoRefreshTimer = null;
+  let countdownTimer = null;
+  let countdown = REFRESH_INTERVAL;
+  let isLoading = false;
+
+  document.addEventListener('DOMContentLoaded', () => {
+    // Detect Electron and apply float mode
+    const isFloatMode = !!window.electronAPI;
+    if (isFloatMode) {
+      document.body.classList.add('float-mode');
+      initFloatMode();
+    } else {
+      initWebMode();
+    }
+  });
+
+  function initFloatMode() {
+    const saved = localStorage.getItem(STORAGE_KEY);
+    if (saved) {
+      // Pre-fill and show gauge directly
+      document.getElementById('apiKeyInput').value = saved;
+      document.getElementById('floatApiKeyArea').classList.add('hidden');
+      document.getElementById('dataArea').classList.add('visible');
+      showDataArea();
+      fetchData();
+      startAutoRefresh();
+    } else {
+      // Show API key input
+      document.getElementById('floatApiKeyArea').style.display = 'block';
+      document.getElementById('dataArea').classList.remove('visible');
+      document.getElementById('dataArea').style.display = 'none';
+    }
+  }
+
+  function initWebMode() {
+    const saved = localStorage.getItem(STORAGE_KEY);
+    if (saved) {
+      document.getElementById('apiKeyInputWeb').value = saved;
+      showDataArea();
+      fetchData();
+      startAutoRefresh();
+    } else {
+      document.getElementById('welcomeState').style.display = 'block';
+      document.getElementById('webApiKeyArea').style.display = 'block';
+    }
+  }
+
+  function saveApiKey(isFloatMode) {
+    const inputId = isFloatMode ? 'apiKeyInput' : 'apiKeyInputWeb';
+    const key = document.getElementById(inputId).value.trim();
+    if (!key) { showError('请输入 API Key'); return; }
+    localStorage.setItem(STORAGE_KEY, key);
+    hideError();
+
+    if (isFloatMode) {
+      // Float mode: hide API key, show gauge
+      document.getElementById('floatApiKeyArea').classList.add('hidden');
+      document.getElementById('dataArea').classList.add('visible');
+      document.getElementById('dataArea').style.display = 'block';
+    } else {
+      // Web mode
+      document.getElementById('webApiKeyArea').style.display = 'none';
+      document.getElementById('welcomeState').style.display = 'none';
+    }
+
+    showDataArea();
+    fetchData();
+    startAutoRefresh();
+  }
+
+  // Event listeners for both modes
+  document.getElementById('saveBtn').addEventListener('click', () => saveApiKey(true));
+  document.getElementById('apiKeyInput').addEventListener('keydown', e => {
+    if (e.key === 'Enter') saveApiKey(true);
+  });
+  document.getElementById('saveBtnWeb') && document.getElementById('saveBtnWeb').addEventListener('click', () => saveApiKey(false));
+  document.getElementById('apiKeyInputWeb') && document.getElementById('apiKeyInputWeb').addEventListener('keydown', e => {
+    if (e.key === 'Enter') saveApiKey(false);
+  });
+
+  // Listen for show-api-key-input from right-click menu
+  if (window.electronAPI) {
+    window.electronAPI.onShowApiKeyInput(() => {
+      // Show API key input for editing
+      const saved = localStorage.getItem(STORAGE_KEY);
+      document.getElementById('apiKeyInput').value = saved || '';
+      document.getElementById('floatApiKeyArea').classList.remove('hidden');
+      document.getElementById('floatApiKeyArea').style.display = 'block';
+      document.getElementById('dataArea').classList.remove('visible');
+      document.getElementById('dataArea').style.display = 'none';
+      document.getElementById('apiKeyInput').focus();
+    });
+  }
+
+  async function fetchData() {
+    const key = localStorage.getItem(STORAGE_KEY);
+    if (!key) { showError('未找到 API Key，请先保存'); return; }
+    if (isLoading) return;
+    isLoading = true;
+    setLoading(true);
+
+    try {
+      const resp = await fetch(API_URL, {
+        method: 'GET',
+        headers: { 'Authorization': `Bearer ${key}`, 'Content-Type': 'application/json' }
+      });
+
+      if (resp.status === 401 || resp.status === 403) {
+        throw new Error('API Key 无效，请检查后重新输入');
+      }
+      if (!resp.ok) {
+        throw new Error(`请求失败 (${resp.status})，请稍后重试`);
+      }
+
+      const json = await resp.json();
+
+      if (json.base_resp?.status_code !== 0) {
+        throw new Error(json.base_resp?.status_msg || 'API 返回错误');
+      }
+
+      hideError();
+      allModels = json.model_remains || [];
+
+      if (allModels.length === 0) {
+        throw new Error('未获取到任何模型数据');
+      }
+
+      // Rebuild selector
+      const select = document.getElementById('modelSelect');
+      select.innerHTML = '';
+      allModels.forEach((m, i) => {
+        const opt = document.createElement('option');
+        opt.value = i;
+        opt.textContent = m.model_name || `模型 ${i + 1}`;
+        select.appendChild(opt);
+      });
+
+      // Default to MiniMax-M* if present
+      const defaultIdx = allModels.findIndex(m => (m.model_name || '').includes('MiniMax-M'));
+      selectModel(defaultIdx >= 0 ? defaultIdx : 0);
+
+      setStatus('live', `获取成功 · ${allModels.length} 个模型`);
+      resetCountdown();
+
+    } catch (err) {
+      showError(err.message);
+      setStatus('error', err.message);
+    } finally {
+      isLoading = false;
+      setLoading(false);
+    }
+  }
+
+  function selectModel(index) {
+    selectedModelIndex = Number(index);
+    const m = allModels[selectedModelIndex];
+    if (!m) return;
+
+    // Daily (interval) counts
+    // 字段含义澄清: current_interval_usage_count = 剩余可用额度, current_interval_total - 它 = 已用额度
+    const dailyTotal = Number(m.current_interval_total_count) || 0;
+    const dailyRemainTokens = Number(m.current_interval_usage_count) || 0;
+    const dailyUsedCalc = Math.max(0, dailyTotal - dailyRemainTokens);
+    const dailyPct   = dailyTotal > 0 ? Math.min((dailyUsedCalc / dailyTotal) * 100, 100) : 0;
+
+    // Weekly counts — 同理
+    const weeklyTotal = Number(m.current_weekly_total_count) || 0;
+    const weeklyRemainTokens = Number(m.current_weekly_usage_count) || 0;
+    const weeklyUsedCalc  = Math.max(0, weeklyTotal - weeklyRemainTokens);
+    const weeklyPct   = weeklyTotal > 0 ? Math.min((weeklyUsedCalc / weeklyTotal) * 100, 100) : 0;
+
+    // remains_time is in MILLISECONDS — confirmed: 15992759ms ≈ 4.44h, matches time-to-interval-end
+    const dailyRemainMs   = Number(m.remains_time) || 0;
+    const weeklyRemainMs   = Number(m.weekly_remains_time) || 0;
+
+    // Store computed data for toggle
+    window._gaugeData = {
+      daily: { total: dailyTotal, used: dailyUsedCalc, remain: dailyRemainTokens, pct: dailyPct, remainMs: dailyRemainMs },
+      weekly: { total: weeklyTotal, used: weeklyUsedCalc, remain: weeklyRemainTokens, pct: weeklyPct, remainMs: weeklyRemainMs },
+    };
+    renderGauge(gaugeView);
+
+    // Stats
+    document.getElementById('statTotal').textContent  = fmt(dailyTotal);
+    document.getElementById('statUsed').textContent   = fmt(dailyUsedCalc);
+    document.getElementById('statRemain').textContent = fmt(dailyRemainTokens);
+
+    // Daily bar
+    document.getElementById('dailyBar').style.width = dailyPct + '%';
+    document.getElementById('dailyUsed').textContent = '已用 ' + fmt(dailyUsedCalc);
+    document.getElementById('dailyTotal').textContent = '/ ' + fmt(dailyTotal);
+    document.getElementById('dailyTime').querySelector('span').textContent =
+      '剩余 ' + fmtDurationMs(dailyRemainMs);
+
+    // Weekly bar
+    document.getElementById('weeklyBar').style.width = weeklyPct + '%';
+    document.getElementById('weeklyUsed').textContent = '已用 ' + fmt(weeklyUsedCalc);
+    document.getElementById('weeklyTotal').textContent = '/ ' + fmt(weeklyTotal);
+    document.getElementById('weeklyTime').querySelector('span').textContent =
+      '剩余 ' + fmtDurationMs(weeklyRemainMs);
+
+    // Interval window
+    const start = tsToDate(m.start_time);
+    const end   = tsToDate(m.end_time);
+    document.getElementById('intervalInfo').textContent =
+      '当日周期: ' + start + ' → ' + end;
+
+    document.getElementById('lastUpdated').textContent = fmtTime(new Date());
+  }
+
+  function renderGauge(view) {
+    const d = window._gaugeData;
+    if (!d) return;
+    const data = view === 'daily' ? d.daily : d.weekly;
+    const label = view === 'daily' ? '5小时已用' : '周已用';
+    const offset = CIRCUMFERENCE - (data.pct / 100) * CIRCUMFERENCE;
+    document.getElementById('gaugePct').textContent = data.pct.toFixed(1) + '%';
+    document.getElementById('gaugeLabel').textContent = label;
+    document.getElementById('gaugeRemain').textContent = '剩余 ' + fmtDurationMs(data.remainMs);
+    document.getElementById('gaugeFill').style.strokeDashoffset = offset;
+  }
+
+  function toggleGaugeView() {
+    gaugeView = gaugeView === 'daily' ? 'weekly' : 'daily';
+    renderGauge(gaugeView);
+  }
+
+  function startAutoRefresh() {
+    stopAutoRefresh();
+    autoRefreshTimer = setInterval(fetchData, REFRESH_INTERVAL * 1000);
+    document.getElementById('autoRefreshLabel').textContent = '⟳ 自动刷新: 开';
+    document.getElementById('autoRefreshBtn').className = 'btn btn-primary';
+    startCountdown();
+  }
+
+  function stopAutoRefresh() {
+    if (autoRefreshTimer) { clearInterval(autoRefreshTimer); autoRefreshTimer = null; }
+    if (countdownTimer)    { clearInterval(countdownTimer); countdownTimer = null; }
+    document.getElementById('autoRefreshLabel').textContent = '⟳ 自动刷新: 关';
+    document.getElementById('autoRefreshBtn').className = 'btn btn-ghost';
+    document.getElementById('countdownText').textContent = '';
+  }
+
+  function toggleAutoRefresh() {
+    if (autoRefreshTimer) stopAutoRefresh(); else startAutoRefresh();
+  }
+
+  function startCountdown() {
+    countdown = REFRESH_INTERVAL;
+    clearInterval(countdownTimer);
+    countdownTimer = setInterval(() => {
+      countdown--;
+      if (countdown <= 0) countdown = REFRESH_INTERVAL;
+      document.getElementById('countdownText').textContent = `${countdown}s 后刷新`;
+    }, 1000);
+  }
+
+  function resetCountdown() { if (autoRefreshTimer) startCountdown(); }
+
+  function setLoading(on) {
+    const btn = document.getElementById('refreshBtn');
+    if (on) {
+      btn.innerHTML = '<span class="spinner"></span> 加载中…';
+      btn.disabled = true;
+    } else {
+      btn.innerHTML = `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+        <polyline points="23 4 23 10 17 10"/><polyline points="1 20 1 14 7 14"/>
+        <path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/>
+      </svg> 刷新`;
+      btn.disabled = false;
+    }
+  }
+
+  function showError(msg) {
+    document.getElementById('errorText').textContent = msg;
+    document.getElementById('errorBanner').classList.add('show');
+  }
+
+  function hideError() {
+    document.getElementById('errorBanner').classList.remove('show');
+  }
+
+  function setStatus(type, text) {
+    document.getElementById('statusDot').className = 'status-dot ' + (type !== 'error' ? 'live' : 'error');
+    document.getElementById('statusText').textContent = text;
+  }
+
+  function showDataArea() {
+    document.getElementById('welcomeState').style.display = 'none';
+    document.getElementById('dataArea').style.display = 'block';
+  }
+
+  // ── Helpers ────────────────────────────────────────────────
+  function fmt(n) {
+    if (!n && n !== 0) return '—';
+    if (n >= 1_000_000_000) return (n / 1_000_000_000).toFixed(1) + 'B';
+    if (n >= 1_000_000) return (n / 1_000_000).toFixed(1) + 'M';
+    if (n >= 1_000) return (n / 1_000).toFixed(1) + 'K';
+    return n.toLocaleString();
+  }
+
+  function fmtDuration(seconds) {
+    if (!seconds) return '—';
+    if (seconds >= 86400) return (seconds / 86400).toFixed(1) + ' 天';
+    if (seconds >= 3600)  return (seconds / 3600).toFixed(1) + ' 小时';
+    if (seconds >= 60)    return Math.round(seconds / 60) + ' 分钟';
+    return seconds + ' 秒';
+  }
+
+  // remains_time from MiniMax API is in MILLISECONDS
+  function fmtDurationMs(ms) {
+    if (!ms) return '—';
+    const seconds = ms / 1000;
+    if (seconds >= 86400) return (seconds / 86400).toFixed(1) + ' 天';
+    if (seconds >= 3600)  return (seconds / 3600).toFixed(1) + ' 小时';
+    if (seconds >= 60)    return Math.round(seconds / 60) + ' 分钟';
+    return Math.round(seconds) + ' 秒';
+  }
+
+  function fmtTime(d) {
+    return d.toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+  }
+
+  // Timestamps from MiniMax API are in milliseconds
+  function tsToDate(ts) {
+    if (!ts) return '—';
+    const d = new Date(ts);
+    return d.toLocaleString('zh-CN', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' });
+  }
+</script>
+</body>
+</html>
