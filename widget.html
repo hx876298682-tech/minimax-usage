@@ -1,0 +1,223 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>MiniMax 用量</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; user-select: none; -webkit-user-select: none; }
+
+    body {
+      font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+      background: transparent;
+      color: #f0f0f5;
+      height: 100vh;
+      width: 100vw;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 0;
+      margin: 0;
+      overflow: hidden;
+    }
+
+    .gauge-wrap {
+      position: relative;
+      width: 140px;
+      height: 140px;
+      cursor: pointer;
+    }
+
+    .gauge-svg {
+      width: 100%;
+      height: 100%;
+      transform: rotate(-90deg);
+    }
+
+    .gauge-bg {
+      fill: rgba(26, 26, 31, 0.9);
+      stroke: rgba(255,255,255,0.15);
+      stroke-width: 3;
+    }
+
+    .gauge-fill {
+      fill: none;
+      stroke: url(#gaugeGradient);
+      stroke-width: 8;
+      stroke-linecap: round;
+      stroke-dasharray: 477.5;
+      stroke-dashoffset: 477.5;
+      transition: stroke-dashoffset 1.2s cubic-bezier(0.4, 0, 0.2, 1);
+    }
+
+    .gauge-center {
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      text-align: center;
+    }
+
+    .gauge-pct {
+      font-size: 18px;
+      font-weight: 800;
+      letter-spacing: -0.5px;
+      line-height: 1;
+    }
+
+    .gauge-pct-label {
+      font-size: 9px;
+      color: #8a8a9a;
+      font-weight: 500;
+      margin-top: 3px;
+    }
+
+    .gauge-remain {
+      font-size: 8px;
+      color: #55556a;
+      font-weight: 400;
+      margin-top: 2px;
+    }
+  </style>
+</head>
+<body>
+  <svg width="0" height="0" style="position:absolute">
+    <defs>
+      <linearGradient id="gaugeGradient" x1="0%" y1="0%" x2="100%" y2="0%">
+        <stop offset="0%" stop-color="#e56b6f" />
+        <stop offset="100%" stop-color="#f09090" />
+      </linearGradient>
+    </defs>
+  </svg>
+
+  <div class="gauge-wrap" id="gaugeWrap">
+    <svg class="gauge-svg" viewBox="0 0 200 200">
+      <circle class="gauge-bg" cx="100" cy="100" r="80"/>
+      <circle class="gauge-fill" id="gaugeFill" cx="100" cy="100" r="76"/>
+    </svg>
+    <div class="gauge-center">
+      <div class="gauge-pct" id="gaugePct">—</div>
+      <div class="gauge-pct-label" id="gaugeLabel">已用</div>
+      <div class="gauge-remain" id="gaugeRemain">剩余 —</div>
+    </div>
+  </div>
+
+  <script>
+    const STORAGE_KEY = 'minimax_api_key';
+    const DAILY_LIMIT = 5 * 60 * 60 * 1000;
+    const WEEKLY_LIMIT = 20 * 60 * 60 * 1000;
+
+    let isDragging = false;
+    let dragStartX = 0;
+    let dragStartY = 0;
+    const DRAG_THRESHOLD = 3;
+
+    let viewMode = 'daily';
+    let usageData = null;
+
+    function getApiKey() {
+      return localStorage.getItem(STORAGE_KEY) || '';
+    }
+
+    async function fetchUsage() {
+      const apiKey = getApiKey();
+      if (!apiKey) return;
+
+      try {
+        const now = new Date();
+        const startOfDay = new Date(now.getFullYear(), now.getMonth(), now.getDate()).getTime();
+        const startOfWeek = startOfDay - (now.getDay() === 0 ? 6 : now.getDay() - 1) * 86400000;
+
+        const [dailyRes, weeklyRes] = await Promise.all([
+          fetch(`https://api.minimax.chat/v1/usage?resource_type=speech2voice&start_time=${startOfDay}`, {
+            headers: { 'Authorization': `Bearer ${apiKey}` }
+          }),
+          fetch(`https://api.minimax.chat/v1/usage?resource_type=speech2voice&start_time=${startOfWeek}`, {
+            headers: { 'Authorization': `Bearer ${apiKey}` }
+          })
+        ]);
+
+        const dailyData = await dailyRes.json();
+        const weeklyData = await weeklyRes.json();
+
+        usageData = {
+          daily: dailyData.data?.total_usage || 0,
+          weekly: weeklyData.data?.total_usage || 0
+        };
+
+        updateDisplay();
+      } catch (e) {
+        console.error('Failed to fetch usage:', e);
+      }
+    }
+
+    function updateDisplay() {
+      if (!usageData) return;
+
+      const limit = viewMode === 'daily' ? DAILY_LIMIT : WEEKLY_LIMIT;
+      const used = viewMode === 'daily' ? usageData.daily : usageData.weekly;
+      const pct = Math.min((used / limit) * 100, 100);
+      const remain = Math.max(limit - used, 0);
+
+      const circumference = 2 * Math.PI * 76;
+      const offset = circumference * (1 - pct / 100);
+
+      document.getElementById('gaugeFill').style.strokeDashoffset = offset;
+      document.getElementById('gaugePct').textContent = Math.round(pct) + '%';
+      document.getElementById('gaugeLabel').textContent = viewMode === 'daily' ? '已用' : '本周';
+      document.getElementById('gaugeRemain').textContent = '剩余 ' + formatTime(remain);
+    }
+
+    function formatTime(ms) {
+      const hours = Math.floor(ms / 3600000);
+      const minutes = Math.floor((ms % 3600000) / 60000);
+      if (hours > 0) return hours + '时' + minutes + '分';
+      return minutes + '分';
+    }
+
+    document.getElementById('gaugeWrap').addEventListener('click', () => {
+      viewMode = viewMode === 'daily' ? 'weekly' : 'daily';
+      updateDisplay();
+    });
+
+    // Drag functionality
+    document.addEventListener('mousedown', (e) => {
+      isDragging = false;
+      dragStartX = e.screenX;
+      dragStartY = e.screenY;
+    });
+
+    document.addEventListener('mousemove', (e) => {
+      if (e.buttons !== 1) return;
+
+      const deltaX = e.screenX - dragStartX;
+      const deltaY = e.screenY - dragStartY;
+      const distance = Math.sqrt(deltaX * deltaX + deltaY * deltaY);
+
+      if (distance > DRAG_THRESHOLD) {
+        isDragging = true;
+        if (window.electronAPI) {
+          window.electronAPI.moveWindow(deltaX, deltaY);
+        }
+        dragStartX = e.screenX;
+        dragStartY = e.screenY;
+      }
+    });
+
+    document.addEventListener('mouseup', () => {
+      isDragging = false;
+    });
+
+    // Right-click context menu
+    document.addEventListener('contextmenu', (e) => {
+      e.preventDefault();
+      if (window.electronAPI) {
+        window.electronAPI.showContextMenu();
+      }
+    });
+
+    fetchUsage();
+    setInterval(fetchUsage, 60000);
+  </script>
+</body>
+</html>
